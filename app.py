@@ -66,7 +66,8 @@ if page == "Dashboard":
     col3.metric("System Status", "✅ Running")
 
     st.subheader("🌦️ Live Weather Data")
-    city_state = st.selectbox("Select City:", city_list, index=0)
+    city_state = st.selectbox("Select your location:", ["Select your location"] + city_list, index=0)
+
 
     # Extract sirf city ka naam for API
     selected_city = city_state.split(" (")[0]
