@@ -1,0 +1,9 @@
+# Virtual environment ignore
+venv/
+
+# Python cache files ignore
+__pycache__/
+*.pyc
+
+# Model pickle files ignore (agar GitHub pe upload nahi karna chahte ho)
+*.pkl
