@@ -21,13 +21,17 @@ model, scaler = load_model()
 @st.cache_data
 def load_cities():
     try:
-        city_data = pd.read_csv("data/indian_cities.csv")   # Ensure file exists in /data folder
-        return sorted(city_data["city"].dropna().unique().tolist())
-    except:
+        city_data = pd.read_csv("data/indian_cities.csv")   # Ensure correct path
+        # Combine City + State for dropdown
+        city_data["CityState"] = city_data["City"].astype(str) + " (" + city_data["State"].astype(str) + ")"
+        return city_data
+    except Exception as e:
+        st.error(f"Error loading cities: {e}")
         # Fallback in case CSV is missing
-        return ["Delhi", "Mumbai", "Kolkata", "Chennai", "Bangalore", "Jaipur", "Lucknow", "Patna"]
+        return pd.DataFrame({"CityState": ["Delhi (Delhi)", "Mumbai (Maharashtra)"]})
 
-city_list = load_cities()
+city_data = load_cities()
+city_list = sorted(city_data["CityState"].dropna().unique().tolist())
 
 # ------------------ Weather API ------------------
 def get_weather(city="Delhi"):
@@ -62,9 +66,13 @@ if page == "Dashboard":
     col3.metric("System Status", "✅ Running")
 
     st.subheader("🌦️ Live Weather Data")
-    city = st.selectbox("Select City:", city_list, index=0)
+    city_state = st.selectbox("Select City:", city_list, index=0)
+
+    # Extract sirf city ka naam for API
+    selected_city = city_state.split(" (")[0]
+
     if st.button("Get Weather"):
-        weather = get_weather(city)
+        weather = get_weather(selected_city)
         if weather:
             col1, col2, col3 = st.columns(3)
             col1.metric("🌡️ Temp (°C)", weather["Temperature"])
@@ -171,3 +179,4 @@ elif page == "AI Assistant":
             st.chat_message("user").markdown(msg)
         else:
             st.chat_message("assistant").markdown(msg)
+

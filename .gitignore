@@ -6,4 +6,4 @@ __pycache__/
 *.pyc
 
 # Model pickle files ignore (agar GitHub pe upload nahi karna chahte ho)
-*.pkl
+# *.pkl
