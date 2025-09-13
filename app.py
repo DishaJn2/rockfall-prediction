@@ -48,7 +48,7 @@ def get_weather(city="Delhi"):
         return None
 
 # ------------------ Google Elevation API ------------------
-API_KEY_GOOGLE = "YOUR_GOOGLE_API_KEY"   # <-- apna Google API key daalo
+API_KEY_GOOGLE = "AQ.Ab8RN6JkCng-n9derPFHwL6_4hAroX3FeOHXgscDTgI8ZimCqw"   # <-- apna Google API key daalo
 gmaps = googlemaps.Client(key=API_KEY_GOOGLE)
 
 def get_slope_from_location(city):
