@@ -8,4 +8,4 @@ plotly
 folium
 streamlit-folium
 python-dateutil
-
+googlemaps

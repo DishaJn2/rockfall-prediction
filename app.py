@@ -7,6 +7,8 @@ import plotly.graph_objects as go
 import folium
 from streamlit_folium import st_folium
 import requests
+import googlemaps
+import math
 
 # ------------------ Load Model ------------------
 @st.cache_resource
@@ -21,13 +23,11 @@ model, scaler = load_model()
 @st.cache_data
 def load_cities():
     try:
-        city_data = pd.read_csv("data/indian_cities.csv")   # Ensure correct path
-        # Combine City + State for dropdown
+        city_data = pd.read_csv("data/indian_cities.csv")
         city_data["CityState"] = city_data["City"].astype(str) + " (" + city_data["State"].astype(str) + ")"
         return city_data
     except Exception as e:
         st.error(f"Error loading cities: {e}")
-        # Fallback in case CSV is missing
         return pd.DataFrame({"CityState": ["Delhi (Delhi)", "Mumbai (Maharashtra)"]})
 
 city_data = load_cities()
@@ -35,7 +35,7 @@ city_list = sorted(city_data["CityState"].dropna().unique().tolist())
 
 # ------------------ Weather API ------------------
 def get_weather(city="Delhi"):
-    API_KEY = "e485fe9a0dfd4f27ee76b7de15d0acac"   # <-- apni OpenWeatherMap API key daalo
+    API_KEY = "YOUR_OPENWEATHERMAP_API_KEY"   # <-- apna OpenWeatherMap API key daalo
     url = f"http://api.openweathermap.org/data/2.5/weather?q={city},IN&appid={API_KEY}&units=metric"
     response = requests.get(url).json()
     if response.get("main"):
@@ -45,6 +45,39 @@ def get_weather(city="Delhi"):
             "Rainfall": response.get("rain", {}).get("1h", 0)
         }
     else:
+        return None
+
+# ------------------ Google Elevation API ------------------
+API_KEY_GOOGLE = "YOUR_GOOGLE_API_KEY"   # <-- apna Google API key daalo
+gmaps = googlemaps.Client(key=API_KEY_GOOGLE)
+
+def get_slope_from_location(city):
+    try:
+        geocode = gmaps.geocode(city)
+        if not geocode:
+            return None
+        lat = geocode[0]['geometry']['location']['lat']
+        lon = geocode[0]['geometry']['location']['lng']
+
+        point1 = (lat, lon)
+        point2 = (lat + 0.01, lon + 0.01)
+
+        elevation1 = gmaps.elevation(point1)[0]['elevation']
+        elevation2 = gmaps.elevation(point2)[0]['elevation']
+
+        # Distance calculation
+        R = 6371e3
+        lat1, lon1, lat2, lon2 = map(math.radians, [lat, lon, lat+0.01, lon+0.01])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+        distance = 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+        height_diff = elevation2 - elevation1
+        slope_angle = math.degrees(math.atan(abs(height_diff)/distance))
+
+        return round(slope_angle, 2)
+    except Exception as e:
         return None
 
 # ------------------ Page Config ------------------
@@ -66,10 +99,7 @@ if page == "Dashboard":
     col3.metric("System Status", "✅ Running")
 
     st.subheader("🌦️ Live Weather Data")
-    city_state = st.selectbox("Select your location:", ["Select your location"] + city_list, index=0)
-
-
-    # Extract sirf city ka naam for API
+    city_state = st.selectbox("🌍 Select your Location:", city_list, index=0)
     selected_city = city_state.split(" (")[0]
 
     if st.button("Get Weather"):
@@ -92,14 +122,26 @@ if page == "Dashboard":
 elif page == "Prediction":
     st.header("⚡ Run Rockfall Prediction")
 
-    slope_angle = st.slider("Slope Angle (°)", 10, 80, 40)
+    city_state = st.selectbox("🌍 Select your Location:", city_list, index=0)
+    selected_city = city_state.split(" (")[0]
+
+    st.subheader("📡 Real-time Slope Data (Google Elevation API)")
+    if st.button("Fetch Slope from Google API"):
+        slope_angle = get_slope_from_location(selected_city)
+        if slope_angle:
+            st.success(f"⛰️ Auto-fetched Slope Angle: {slope_angle}°")
+        else:
+            st.error("❌ Could not fetch slope data, please use manual input.")
+            slope_angle = st.slider("Slope Angle (°)", 10, 80, 40)
+    else:
+        slope_angle = st.slider("Slope Angle (°)", 10, 80, 40)
+
     cohesion = st.slider("Cohesion (kPa)", 5, 100, 50)
     friction_angle = st.slider("Internal Friction Angle (°)", 5, 45, 30)
     unit_weight = st.slider("Unit Weight (kN/m³)", 15, 30, 20)
     slope_height = st.slider("Slope Height (m)", 5, 60, 25)
 
-    # Live weather input
-    weather = get_weather("Delhi") or {"Temperature": 25, "Humidity": 50, "Rainfall": 10}
+    weather = get_weather(selected_city) or {"Temperature": 25, "Humidity": 50, "Rainfall": 10}
 
     features = np.array([[unit_weight, cohesion, friction_angle, slope_angle,
                           slope_height, weather["Rainfall"], weather["Temperature"]]])
@@ -180,4 +222,5 @@ elif page == "AI Assistant":
             st.chat_message("user").markdown(msg)
         else:
             st.chat_message("assistant").markdown(msg)
+
 
